@@ -5,7 +5,12 @@ import { generateUId } from "./Utils";
 import { COLORS } from "./assets/Colors";
 import { RSA } from "react-native-rsa-native";
 
-const API_BASE_URL = "http://localhost:3000";
+const getApiBaseUrl = () => {
+  if (__DEV__) {
+    return "http://10.0.2.2:3000";
+  }
+  return "http://YOUR_PRODUCTION_IP:3000";
+};
 
 const Name = ({ navigation }) => {
   const [name, setName] = useState();
@@ -21,11 +26,10 @@ const Name = ({ navigation }) => {
     try {
       const id = generateUId();
       const uid = `${name}@${id}`;
-      await AsyncStorage.setItem("username", name);
-      await AsyncStorage.setItem("uid", uid);
+      const apiBaseUrl = getApiBaseUrl();
 
       try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
+        const response = await fetch(`${apiBaseUrl}/register`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -45,8 +49,17 @@ const Name = ({ navigation }) => {
           Alert.alert("Error", "Registration failed. Please try again.");
           return;
         }
+
+        await AsyncStorage.setItem("username", name);
+        await AsyncStorage.setItem("uid", uid);
       } catch (apiError) {
-        console.log("API not available, proceeding with local registration");
+        console.error("Registration API error:", apiError);
+        Alert.alert(
+          "Offline Mode",
+          "Unable to connect to server. Continuing in offline mode."
+        );
+        await AsyncStorage.setItem("username", name);
+        await AsyncStorage.setItem("uid", uid);
       }
 
       RSA.generateKeys(1024)
