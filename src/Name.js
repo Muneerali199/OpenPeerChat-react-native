@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, Button } from "react-native";
+import { View, Text, StyleSheet, TextInput, Button, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateUId } from "./Utils";
 import { COLORS } from "./assets/Colors";
 import { RSA } from "react-native-rsa-native";
+
+const API_BASE_URL = "http://localhost:3000";
 
 const Name = ({ navigation }) => {
   const [name, setName] = useState();
@@ -22,7 +24,32 @@ const Name = ({ navigation }) => {
       await AsyncStorage.setItem("username", name);
       await AsyncStorage.setItem("uid", uid);
 
-      RSA.generateKeys(1024) // set key size
+      try {
+        const response = await fetch(`${API_BASE_URL}/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ username: name, uid: uid }),
+        });
+
+        if (response.status === 429) {
+          Alert.alert(
+            "Rate Limit Reached",
+            "Too many registration attempts. Please wait before trying again."
+          );
+          return;
+        }
+
+        if (!response.ok) {
+          Alert.alert("Error", "Registration failed. Please try again.");
+          return;
+        }
+      } catch (apiError) {
+        console.log("API not available, proceeding with local registration");
+      }
+
+      RSA.generateKeys(1024)
         .then((keys) => {
           keys = JSON.stringify(keys);
           AsyncStorage.setItem(uid, keys)
